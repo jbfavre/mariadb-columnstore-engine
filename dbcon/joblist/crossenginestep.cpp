@@ -227,17 +227,24 @@ void CrossEngineStep::makeMappings()
 }
 
 
-void CrossEngineStep::setField(int i, const char* value, Row& row)
+void CrossEngineStep::setField(int i, const char* value, unsigned long length, Row& row)
 {
 	CalpontSystemCatalog::ColDataType colType = row.getColType(i);
 
-	if ((colType == CalpontSystemCatalog::CHAR || colType == CalpontSystemCatalog::VARCHAR) &&
-		row.getColumnWidth(i) > 8)
+	if (((colType == CalpontSystemCatalog::CHAR || colType == CalpontSystemCatalog::VARCHAR) &&
+		row.getColumnWidth(i) > 8))
 	{
 		if (value != NULL)
 			row.setStringField(value, i);
 		else
 			row.setStringField("", i);
+	}
+	else if ((colType == CalpontSystemCatalog::BLOB) || (colType == CalpontSystemCatalog::VARBINARY))
+	{
+		if (value != NULL)
+			row.setVarBinaryField((const uint8_t*)value, length, i);
+		else
+			row.setVarBinaryField(NULL, 0, i);
 	}
 	else
 	{
@@ -480,7 +487,7 @@ void CrossEngineStep::execute()
 			while ((rowIn = mysql->nextRow()) && !cancelled())
 			{
 				for(int i = 0; i < num_fields; i++)
-					setField(i, rowIn[i], fRowDelivered);
+					setField(i, rowIn[i], mysql->getFieldLength(i), fRowDelivered);
 
 				addRow(rgDataDelivered);
 			}
@@ -500,7 +507,7 @@ void CrossEngineStep::execute()
 				for(int i = 0; i < num_fields; i++)
 				{
 					if (fFe1Column[i] != -1)
-						setField(fFe1Column[i], rowIn[i], rowFe1);
+						setField(fFe1Column[i], rowIn[i], mysql->getFieldLength(i), rowFe1);
 				}
 
 				if (fFeFilters && fFeInstance->evaluate(rowFe1, fFeFilters.get()) == false)
@@ -514,7 +521,7 @@ void CrossEngineStep::execute()
 				for(int i = 0; i < num_fields; i++)
 				{
 					if (fFe1Column[i] == -1)
-						setField(i, rowIn[i], fRowDelivered);
+						setField(i, rowIn[i], mysql->getFieldLength(i), fRowDelivered);
 				}
 
 				addRow(rgDataDelivered);
@@ -532,7 +539,7 @@ void CrossEngineStep::execute()
 			while ((rowIn = mysql->nextRow()) && !cancelled())
 			{
 				for(int i = 0; i < num_fields; i++)
-					setField(i, rowIn[i], rowFe3);
+					setField(i, rowIn[i], mysql->getFieldLength(i), rowFe3);
 
 				fFeInstance->evaluate(rowFe3, fFeSelects);
 				fFeInstance->evaluate(rowFe3, fFeSelects);
@@ -563,7 +570,7 @@ void CrossEngineStep::execute()
 				for(int i = 0; i < num_fields; i++)
 				{
 					if (fFe1Column[i] != -1)
-						setField(fFe1Column[i], rowIn[i], rowFe1);
+						setField(fFe1Column[i], rowIn[i], mysql->getFieldLength(i), rowFe1);
 				}
 
 				if (fFeFilters && fFeInstance->evaluate(rowFe1, fFeFilters.get()) == false)
@@ -577,7 +584,7 @@ void CrossEngineStep::execute()
 				for(int i = 0; i < num_fields; i++)
 				{
 					if (fFe1Column[i] == -1)
-						setField(i, rowIn[i], rowFe3);
+						setField(i, rowIn[i], mysql->getFieldLength(i), rowFe3);
 				}
 
 				fFeInstance->evaluate(rowFe3, fFeSelects);
